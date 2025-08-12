@@ -53,8 +53,8 @@ app.post('/verify', parser.urlencoded({ extended: false }), async (req, res) => 
   }
 
   const response = await axios.post(session.url, {...session, code}, {validateStatus: () => true});
-  console.log("Session verifivation response code:", response.statusCode, session.id)
-  if (response.statusCode === 200) {
+  console.log("Session verifivation response code:", response.status, session.id)
+  if (response.status === 200) {
     twiml.say(twimlOptions, "Kod poprawny. Trwa finalizacja transakcji.")
     session.status = "verified"
     console.log("Session is verified", session.id)
