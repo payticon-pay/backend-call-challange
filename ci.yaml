@@ -1,0 +1,6 @@
+branches:
+  - feature/*
+  - release/*
+  - hotfix/*
+images:
+  - image: paycadoo-call-chalange
