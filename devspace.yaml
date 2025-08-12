@@ -1,0 +1,39 @@
+version: v2beta1
+name: paycaddo-call-chalange
+
+vars:
+  USERNAME:
+    question: Which username do you want to use?
+  NAMESPACE:
+    value: paycadoo-${USERNAME}
+  DEVSPACE_FLAGS:
+    value: "-n ${NAMESPACE}"
+  BASE_DOMAIN:
+    value: "dev.kubeticon.com"
+  HOST:
+    value: ${NAMESPACE}-call-challange.${BASE_DOMAIN}
+
+deployments:
+  call-chalange:
+    helm:
+      chart:
+        name: ./helm
+      values:
+        dev: true
+        host: ${HOST}
+dev:
+  app:
+    labelSelector:
+      app: call-chalange
+    devImage: node:20
+    workingDir: /app
+    sync:
+      - path: ./:/app
+        waitInitialSync: false
+        excludePaths:
+          - /node_modules
+          - /.git
+          - /.devspace
+          - /.cache
+    terminal:
+      command: npm i && bash

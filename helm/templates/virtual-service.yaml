@@ -1,0 +1,26 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: call-challange
+spec:
+  gateways:
+    - default/default
+    {{ if .Values.gateway.enabled }}
+    - custom
+    {{ end }}
+  hosts:
+    - {{ toYaml .Values.host }}
+    {{ if .Values.gateway.enabled }}
+    - {{ .Values.gateway.host }}
+    {{ end }}
+  http:
+    - match:
+        - uri:
+            prefix: /
+      route:
+        - destination:
+            host: call-chalange.{{ .Release.Namespace }}.svc.cluster.local
+            port:
+              number: 3000
+          weight: 100
+    

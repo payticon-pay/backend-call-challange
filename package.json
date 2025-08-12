@@ -1,0 +1,21 @@
+{
+  "name": "call-auth",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "type": "module",
+  "dependencies": {
+    "axios": "^1.11.0",
+    "body-parser": "^2.2.0",
+    "express": "^5.1.0",
+    "twilio": "^5.8.0"
+  },
+  "scripts": {
+    "tunel": "lt --port 3000 --subdomain payticon-call-auth",
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  }
+}

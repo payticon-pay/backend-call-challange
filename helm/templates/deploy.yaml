@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: call-chalange
+  labels:
+    app: call-chalange
+spec:
+  replicas: {{ .Values.replicas }}
+  selector:
+    matchLabels:
+      app: call-chalange
+  template:
+    metadata:
+      name: call-chalange
+      labels:
+        app: call-chalange
+    spec:
+      imagePullSecrets:
+        - name: ct-registry
+      containers:
+        - name: call-chalange
+          image: {{ .Values.image.name }}:{{ .Values.image.tag }}
+          imagePullPolicy: IfNotPresent
+          readinessProbe:
+            httpGet:
+              port: 3000
+              path: /health
+          livenessProbe:
+            httpGet:
+              port: 3000
+              path: /health
+      restartPolicy: Always
