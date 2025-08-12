@@ -104,7 +104,7 @@ app.post('/voice', parser.urlencoded({ extended: false }), (request, response) =
       action: '/verify',
       method: 'POST',
       timeout: 30, // 30 sekund na wprowadzenie PIN-u
-      finishOnKey: '#', // Zakończ po naciśnięciu #
+      finishOnKey: '#*', // Zakończ po naciśnięciu # lub *
       actionOnEmptyResult: '/timeout' // Przekieruj na timeout gdy nie wprowadzono nic
     });
   }
@@ -156,7 +156,7 @@ app.post('/verify', parser.urlencoded({ extended: false }), async (req, res) => 
         action: '/verify',
         method: 'POST',
         timeout: 30, // 30 sekund na wprowadzenie PIN-u
-        finishOnKey: '#', // Zakończ po naciśnięciu #
+        finishOnKey: '#*', // Zakończ po naciśnięciu # lub *
         actionOnEmptyResult: '/timeout' // Przekieruj na timeout gdy nie wprowadzono nic
       });
     }
@@ -167,7 +167,7 @@ app.post('/verify', parser.urlencoded({ extended: false }), async (req, res) => 
       action: '/verify',
       method: 'POST',
       timeout: 30, // 30 sekund na wprowadzenie PIN-u
-      finishOnKey: '#', // Zakończ po naciśnięciu #
+      finishOnKey: '#*', // Zakończ po naciśnięciu # lub *
       actionOnEmptyResult: '/timeout' // Przekieruj na timeout gdy nie wprowadzono nic
     });
   }
