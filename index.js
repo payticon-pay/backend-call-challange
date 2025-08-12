@@ -130,12 +130,15 @@ app.post('/verify', parser.urlencoded({ extended: false }), async (req, res) => 
   try {
     const response = await axios.post(session.url, {...session, code: digits}, {
       validateStatus: () => true,
-      timeout: 10000 // 10 sekund timeout
+      timeout: 30000 // 30 sekund timeout (zwiększone z 10 sekund)
     });
     
-    console.log("Session verification response code:", response.status, session.id);
+    // Konwertuj status na liczbę i dodaj szczegółowe logi
+    const statusCode = parseInt(response.status);
+    console.log("Session verification response code:", response.status, "parsed as:", statusCode, "type:", typeof response.status, "session:", session.id);
+    console.log("Response data:", response.data);
     
-    if (response.status === 200) {
+    if (statusCode === 200) {
       twiml.say(twimlOptions, "Kod poprawny. Trwa finalizacja transakcji.")
       session.status = "verified"
       console.log("Session is verified", session.id)
@@ -147,6 +150,7 @@ app.post('/verify', parser.urlencoded({ extended: false }), async (req, res) => 
         console.log(`Session ${session.id} removed immediately after verification`);
       }
     } else {
+      console.log("PIN verification failed with status:", statusCode);
       twiml.say(twimlOptions, "Kod niepoprawny. Wpisz kod z SMS-a. W razie błędu zacznij od początku.")
       twiml.gather({
         action: '/verify',
