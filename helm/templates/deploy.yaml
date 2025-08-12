@@ -21,6 +21,12 @@ spec:
         - name: call-chalange
           image: {{ .Values.image.name }}:{{ .Values.image.tag }}
           imagePullPolicy: IfNotPresent
+          env:
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: call-challange
+                  key: apiKey
           readinessProbe:
             httpGet:
               port: 3000

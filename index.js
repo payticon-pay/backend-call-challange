@@ -5,7 +5,7 @@ import express from 'express';
 import pkg from 'twilio';
 const { VoiceResponse } = pkg.twiml;
 
-const TOKEN = "dasijewij84u32832ue32rd2uh43uhffq4huhgruhdgh"
+const TOKEN = process.env.API_KEY
 const app = express();
 const sessions = [];
 const twimlOptions = {language: 'pl-PL'}
