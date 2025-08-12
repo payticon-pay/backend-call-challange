@@ -10,15 +10,21 @@ const app = express();
 const sessions = [];
 const twimlOptions = {language: 'pl-PL'}
 
-// Funkcja do czyszczenia starych sesji (starszych niż 1 godzina)
+// Funkcja do czyszczenia starych sesji (starszych niż 1 godzina) oraz zweryfikowanych sesji
 function cleanupOldSessions() {
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
   const initialLength = sessions.length;
-  const filteredSessions = sessions.filter(session => session.createdAt > oneHourAgo);
+  
+  // Usuń sesje zweryfikowane oraz starsze niż 1 godzina
+  const filteredSessions = sessions.filter(session => 
+    session.status !== "verified" && session.createdAt > oneHourAgo
+  );
+  
   sessions.length = 0;
   sessions.push(...filteredSessions);
+  
   if (initialLength !== sessions.length) {
-    console.log(`Cleaned up ${initialLength - sessions.length} old sessions`);
+    console.log(`Cleaned up ${initialLength - sessions.length} sessions (verified + old)`);
   }
 }
 
