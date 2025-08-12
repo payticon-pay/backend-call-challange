@@ -1,6 +1,6 @@
 image:
   name: docker.devticon.com/paycadoo-call-challange
-  tag: 139e9678c9f8fae928b7565c8b5b963f8e617087
+  tag: 1a0e62d0d3ec20b864e12d254c853ad7d0c2635c
 replicas: 1
 gateway:
   enabled: false
