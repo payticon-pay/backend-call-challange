@@ -104,7 +104,7 @@ app.post('/voice', parser.urlencoded({ extended: false }), (request, response) =
       action: '/verify',
       method: 'POST',
       timeout: 30, // 30 sekund na wprowadzenie PIN-u
-      finishOnKey: '#*', // Zakończ po naciśnięciu # lub *
+      finishOnKey: '#', // Zakończ po naciśnięciu #
       actionOnEmptyResult: '/timeout' // Przekieruj na timeout gdy nie wprowadzono nic
     });
   }
@@ -122,13 +122,30 @@ app.post('/verify', parser.urlencoded({ extended: false }), async (req, res) => 
     return res.status(400).send('Missing From or Digits parameter');
   }
   
+  // Walidacja i czyszczenie PIN-a - tylko cyfry
+  const cleanPin = digits.replace(/[^0-9]/g, '');
+  
+  if (!cleanPin || cleanPin.length < 4 || cleanPin.length > 8) {
+    console.log(`Invalid PIN format: "${digits}" -> cleaned: "${cleanPin}"`);
+    twiml.say(twimlOptions, "Kod PIN musi zawierać od 4 do 8 cyfr. Wpisz kod z SMS-a ponownie.")
+    twiml.gather({
+      action: '/verify',
+      method: 'POST',
+      timeout: 30,
+      finishOnKey: '#', // Tylko # jako klawisz kończący
+      actionOnEmptyResult: '/timeout'
+    });
+    res.type('text/xml');
+    return res.send(twiml.toString());
+  }
+  
   const session = sessions.find(s => s.phone === from);
   if (!session) {
     return res.status(404).send('Session not found');
   }
 
   try {
-    const response = await axios.post(session.url, {...session, code: digits}, {
+    const response = await axios.post(session.url, {...session, code: cleanPin}, {
       validateStatus: () => true,
       timeout: 30000 // 30 sekund timeout (zwiększone z 10 sekund)
     });
@@ -156,7 +173,7 @@ app.post('/verify', parser.urlencoded({ extended: false }), async (req, res) => 
         action: '/verify',
         method: 'POST',
         timeout: 30, // 30 sekund na wprowadzenie PIN-u
-        finishOnKey: '#*', // Zakończ po naciśnięciu # lub *
+        finishOnKey: '#', // Zakończ po naciśnięciu #
         actionOnEmptyResult: '/timeout' // Przekieruj na timeout gdy nie wprowadzono nic
       });
     }
@@ -167,7 +184,7 @@ app.post('/verify', parser.urlencoded({ extended: false }), async (req, res) => 
       action: '/verify',
       method: 'POST',
       timeout: 30, // 30 sekund na wprowadzenie PIN-u
-      finishOnKey: '#*', // Zakończ po naciśnięciu # lub *
+      finishOnKey: '#', // Zakończ po naciśnięciu #
       actionOnEmptyResult: '/timeout' // Przekieruj na timeout gdy nie wprowadzono nic
     });
   }
