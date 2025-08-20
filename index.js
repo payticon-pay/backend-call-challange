@@ -118,7 +118,10 @@ app.post('/verify', parser.urlencoded({ extended: false }), async (req, res) => 
   const from = req.body.From;
   const digits = req.body.Digits;
   
+  console.log(`[INFO] PIN verification started - Phone: ${from}, Digits: "${digits}"`);
+  
   if (!from || !digits) {
+    console.log(`[ERROR] Missing parameters - From: ${from}, Digits: ${digits}`);
     return res.status(400).send('Missing From or Digits parameter');
   }
   
@@ -126,8 +129,10 @@ app.post('/verify', parser.urlencoded({ extended: false }), async (req, res) => 
   const cleanPin = digits.replace(/[^0-9]/g, '');
   
   if (!cleanPin || cleanPin.length < 4 || cleanPin.length > 8) {
-    console.log(`Invalid PIN format: "${digits}" -> cleaned: "${cleanPin}"`);
-    twiml.say(twimlOptions, "Kod PIN musi zawierać od 4 do 8 cyfr. Wpisz kod z SMS-a ponownie.")
+    console.log(`[WARNING] Invalid PIN format - Phone: ${from}, Original: "${digits}" -> Cleaned: "${cleanPin}"`);
+    const userMessage = "Kod PIN musi zawierać od 4 do 8 cyfr. Wpisz kod z SMS-a ponownie.";
+    console.log(`[WARNING] User message: "${userMessage}"`);
+    twiml.say(twimlOptions, userMessage)
     twiml.gather({
       action: '/verify',
       method: 'POST',
@@ -141,6 +146,7 @@ app.post('/verify', parser.urlencoded({ extended: false }), async (req, res) => 
   
   const session = sessions.find(s => s.phone === from);
   if (!session) {
+    console.log(`[ERROR] Session not found for phone: ${from}`);
     return res.status(404).send('Session not found');
   }
 
@@ -156,19 +162,105 @@ app.post('/verify', parser.urlencoded({ extended: false }), async (req, res) => 
     console.log("Response data:", response.data);
     
     if (statusCode === 200) {
-      twiml.say(twimlOptions, "Kod poprawny. Trwa finalizacja transakcji.")
-      session.status = "verified"
-      console.log("Session is verified", session.id)
-      
-      // Natychmiastowe usunięcie zweryfikowanej sesji
-      const sessionIndex = sessions.findIndex(s => s.id === session.id);
-      if (sessionIndex !== -1) {
-        sessions.splice(sessionIndex, 1);
-        console.log(`Session ${session.id} removed immediately after verification`);
+      // Sprawdź success w odpowiedzi
+      if (response.data && response.data.success === true) {
+        // PIN OK, płatność OK
+        const userMessage = "Kod poprawny. Trwa finalizacja transakcji.";
+        console.log(`[SUCCESS] PIN verification successful - Session: ${session.id}, Phone: ${session.phone}, PIN: ${cleanPin}`);
+        console.log(`[SUCCESS] User message: "${userMessage}"`);
+        twiml.say(twimlOptions, userMessage)
+        session.status = "verified"
+        
+        // Natychmiastowe usunięcie zweryfikowanej sesji
+        const sessionIndex = sessions.findIndex(s => s.id === session.id);
+        if (sessionIndex !== -1) {
+          sessions.splice(sessionIndex, 1);
+          console.log(`[INFO] Session ${session.id} removed immediately after successful verification`);
+        }
+      } else {
+        // PIN OK, ale błąd płatności
+        const errorCode = response.data?.code || "UNKNOWN";
+        console.log(`[ERROR] PIN verification successful but payment failed - Session: ${session.id}, Phone: ${session.phone}, Error Code: ${errorCode}`);
+        console.log(`[ERROR] Response data:`, response.data);
+        
+        let errorMessage = "Kod poprawny, ale wystąpił błąd płatności. ";
+        switch (errorCode) {
+          case "DCB_DISABLED_PREMIUM_SERVICES":
+            errorMessage += "Usługa premium jest wyłączona.";
+            console.log(`[ERROR] Payment error: Premium services disabled - Session: ${session.id}, Phone: ${session.phone}`);
+            break;
+          case "AMOUNT_LIMIT_EXCEEDED":
+            errorMessage += "Przekroczono limit kwoty na tym numerze - jest to limit operatora płatności i nie da się go zwiększyć.";
+            console.log(`[ERROR] Payment error: Amount limit exceeded - Session: ${session.id}, Phone: ${session.phone}`);
+            break;
+          default:
+            errorMessage += "Spróbuj ponownie później.";
+            console.log(`[ERROR] Payment error: Unknown code "${errorCode}" - Session: ${session.id}, Phone: ${session.phone}`);
+        }
+        
+        console.log(`[ERROR] User message: "${errorMessage}"`);
+        twiml.say(twimlOptions, errorMessage)
+        twiml.say(twimlOptions, "Dziękujemy za skorzystanie z usługi. Do widzenia.")
+        
+        // Usuń sesję po błędzie płatności
+        const sessionIndex = sessions.findIndex(s => s.id === session.id);
+        if (sessionIndex !== -1) {
+          sessions.splice(sessionIndex, 1);
+          console.log(`[INFO] Session ${session.id} removed after payment error`);
+        }
       }
+    } else if (statusCode === 400) {
+      // Błędny PIN
+      const errorCode = response.data?.code;
+      console.log(`[ERROR] PIN verification failed with status 400 - Session: ${session.id}, Phone: ${session.phone}, Error Code: ${errorCode}`);
+      console.log(`[ERROR] Response data:`, response.data);
+      
+      if (errorCode === "DCB_INVALID_PIN") {
+        console.log(`[ERROR] Invalid PIN error: DCB_INVALID_PIN - Session: ${session.id}, Phone: ${session.phone}, PIN: ${cleanPin}`);
+        const userMessage = "Kod niepoprawny. Wpisz kod z SMS-a. W razie błędu zacznij od początku.";
+        console.log(`[ERROR] User message: "${userMessage}"`);
+        twiml.say(twimlOptions, userMessage)
+        twiml.gather({
+          action: '/verify',
+          method: 'POST',
+          timeout: 30, // 30 sekund na wprowadzenie PIN-u
+          finishOnKey: '#', // Zakończ po naciśnięciu #
+          actionOnEmptyResult: '/timeout' // Przekieruj na timeout gdy nie wprowadzono nic
+        });
+      } else {
+        console.log(`[ERROR] PIN verification failed with status 400 and unknown code: ${errorCode} - Session: ${session.id}, Phone: ${session.phone}, PIN: ${cleanPin}`);
+        const userMessage = "Kod niepoprawny. Wpisz kod z SMS-a. W razie błędu zacznij od początku.";
+        console.log(`[ERROR] User message: "${userMessage}"`);
+        twiml.say(twimlOptions, userMessage)
+        twiml.gather({
+          action: '/verify',
+          method: 'POST',
+          timeout: 30, // 30 sekund na wprowadzenie PIN-u
+          finishOnKey: '#', // Zakończ po naciśnięciu #
+          actionOnEmptyResult: '/timeout' // Przekieruj na timeout gdy nie wprowadzono nic
+        });
+      }
+    } else if (statusCode === 500) {
+      // Internal error - nie robimy nic
+      console.log(`[ERROR] Internal error during verification - Session: ${session.id}, Phone: ${session.phone}, Status: ${statusCode}`);
+      console.log(`[ERROR] Response data:`, response.data);
+      const userMessage = "Wystąpił błąd wewnętrzny. Spróbuj ponownie później.";
+      console.log(`[ERROR] User message: "${userMessage}"`);
+      twiml.say(twimlOptions, userMessage)
+      twiml.gather({
+        action: '/verify',
+        method: 'POST',
+        timeout: 30, // 30 sekund na wprowadzenie PIN-u
+        finishOnKey: '#', // Zakończ po naciśnięciu #
+        actionOnEmptyResult: '/timeout' // Przekieruj na timeout gdy nie wprowadzono nic
+      });
     } else {
-      console.log("PIN verification failed with status:", statusCode);
-      twiml.say(twimlOptions, "Kod niepoprawny. Wpisz kod z SMS-a. W razie błędu zacznij od początku.")
+      // Inne błędy
+      console.log(`[ERROR] PIN verification failed with unexpected status - Session: ${session.id}, Phone: ${session.phone}, Status: ${statusCode}, PIN: ${cleanPin}`);
+      console.log(`[ERROR] Response data:`, response.data);
+      const userMessage = "Kod niepoprawny. Wpisz kod z SMS-a. W razie błędu zacznij od początku.";
+      console.log(`[ERROR] User message: "${userMessage}"`);
+      twiml.say(twimlOptions, userMessage)
       twiml.gather({
         action: '/verify',
         method: 'POST',
@@ -178,8 +270,11 @@ app.post('/verify', parser.urlencoded({ extended: false }), async (req, res) => 
       });
     }
   } catch (error) {
-    console.error("Error during verification:", error.message);
-    twiml.say(twimlOptions, "Wystąpił błąd podczas weryfikacji. Spróbuj ponownie później.")
+    console.error(`[ERROR] Exception during verification - Session: ${session?.id || 'unknown'}, Phone: ${session?.phone || 'unknown'}, Error: ${error.message}`);
+    console.error(`[ERROR] Error stack:`, error.stack);
+    const userMessage = "Wystąpił błąd podczas weryfikacji. Spróbuj ponownie później.";
+    console.log(`[ERROR] User message: "${userMessage}"`);
+    twiml.say(twimlOptions, userMessage)
     twiml.gather({
       action: '/verify',
       method: 'POST',
