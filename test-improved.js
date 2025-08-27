@@ -117,7 +117,7 @@ async function main() {
   // Test 8: Verify endpoint
   try {
     const verifyResponse = await client.post('/verify',
-      `From=${encodeURIComponent(PHONE)}&Digits=123456`,
+      `From=${encodeURIComponent(PHONE)}&SpeechResult=123456&Confidence=0.9`,
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded'

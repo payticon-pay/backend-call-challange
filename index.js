@@ -99,13 +99,15 @@ app.post('/voice', parser.urlencoded({ extended: false }), (request, response) =
    twiml.say(twimlOptions,"Dla numeru, z którego dzwonisz, nie ma aktywnej transakcji do płatności.")
    console.log("Number rejected ", from)
   } else {
-    twiml.say(twimlOptions, "Witaj w pejtikon kropka kom. Rozpoczynasz zakupy kart podarunkowych w usludze \"Place z Play\". Wpisz kod PIN z SMS-a i nacisnij krzyzyk.")
+    twiml.say(twimlOptions, "Witaj w pejtikon kropka kom. Rozpoczynasz zakupy kart podarunkowych w usludze \"Place z Play\". Wypowiedz kod PIN z SMS-a.")
     twiml.gather({
       action: '/verify',
       method: 'POST',
-      timeout: 30, // 30 sekund na wprowadzenie PIN-u
-      finishOnKey: '#', // Zakończ po naciśnięciu #
-      actionOnEmptyResult: '/timeout' // Przekieruj na timeout gdy nie wprowadzono nic
+      timeout: 30, // 30 sekund na wypowiedzenie PIN-u
+      speechTimeout: 'auto', // Automatyczny timeout po zakończeniu wypowiedzi
+      speechModel: 'phone_call', // Model optymalizowany dla rozmów telefonicznych
+      language: 'pl-PL', // Język polski
+      actionOnEmptyResult: '/timeout' // Przekieruj na timeout gdy nie wypowiedziano nic
     });
   }
   
@@ -116,28 +118,50 @@ app.post('/voice', parser.urlencoded({ extended: false }), (request, response) =
 app.post('/verify', parser.urlencoded({ extended: false }), async (req, res) => {
   const twiml = new VoiceResponse();
   const from = req.body.From;
-  const digits = req.body.Digits;
+  const speechResult = req.body.SpeechResult;
+  const confidence = req.body.Confidence;
   
-  console.log(`[INFO] PIN verification started - Phone: ${from}, Digits: "${digits}"`);
+  console.log(`[INFO] PIN verification started - Phone: ${from}, Speech: "${speechResult}", Confidence: ${confidence}`);
   
-  if (!from || !digits) {
-    console.log(`[ERROR] Missing parameters - From: ${from}, Digits: ${digits}`);
-    return res.status(400).send('Missing From or Digits parameter');
+  if (!from || !speechResult) {
+    console.log(`[ERROR] Missing parameters - From: ${from}, Speech: ${speechResult}`);
+    return res.status(400).send('Missing From or SpeechResult parameter');
   }
   
-  // Walidacja i czyszczenie PIN-a - tylko cyfry
-  const cleanPin = digits.replace(/[^0-9]/g, '');
+  // Wyciągnij cyfry z wypowiedzianego tekstu
+  const extractedDigits = speechResult.replace(/[^0-9]/g, '');
   
-  if (!cleanPin || cleanPin.length < 4 || cleanPin.length > 8) {
-    console.log(`[WARNING] Invalid PIN format - Phone: ${from}, Original: "${digits}" -> Cleaned: "${cleanPin}"`);
-    const userMessage = "Kod PIN musi zawierać od 4 do 8 cyfr. Wpisz kod z SMS-a ponownie.";
+  if (!extractedDigits || extractedDigits.length < 4 || extractedDigits.length > 8) {
+    console.log(`[WARNING] Invalid PIN format from speech - Phone: ${from}, Original: "${speechResult}" -> Extracted: "${extractedDigits}"`);
+    const userMessage = "Nie udało się rozpoznać kodu PIN. Kod musi zawierać od 4 do 8 cyfr. Wypowiedz kod z SMS-a ponownie.";
     console.log(`[WARNING] User message: "${userMessage}"`);
     twiml.say(twimlOptions, userMessage)
     twiml.gather({
       action: '/verify',
       method: 'POST',
       timeout: 30,
-      finishOnKey: '#', // Tylko # jako klawisz kończący
+      speechTimeout: 'auto',
+      speechModel: 'phone_call',
+      language: 'pl-PL',
+      actionOnEmptyResult: '/timeout'
+    });
+    res.type('text/xml');
+    return res.send(twiml.toString());
+  }
+  
+  // Sprawdź poziom pewności rozpoznania (opcjonalnie)
+  if (confidence && parseFloat(confidence) < 0.7) {
+    console.log(`[WARNING] Low confidence in speech recognition - Phone: ${from}, Confidence: ${confidence}, Extracted: "${extractedDigits}"`);
+    const userMessage = "Kod został rozpoznany z niską pewnością. Wypowiedz kod z SMS-a ponownie wyraźnie.";
+    console.log(`[WARNING] User message: "${userMessage}"`);
+    twiml.say(twimlOptions, userMessage)
+    twiml.gather({
+      action: '/verify',
+      method: 'POST',
+      timeout: 30,
+      speechTimeout: 'auto',
+      speechModel: 'phone_call',
+      language: 'pl-PL',
       actionOnEmptyResult: '/timeout'
     });
     res.type('text/xml');
@@ -151,7 +175,7 @@ app.post('/verify', parser.urlencoded({ extended: false }), async (req, res) => 
   }
 
   try {
-    const response = await axios.post(session.url, {...session, code: cleanPin}, {
+    const response = await axios.post(session.url, {...session, code: extractedDigits}, {
       validateStatus: () => true,
       timeout: 30000 // 30 sekund timeout (zwiększone z 10 sekund)
     });
@@ -166,7 +190,7 @@ app.post('/verify', parser.urlencoded({ extended: false }), async (req, res) => 
       if (response.data && response.data.success === true) {
         // PIN OK, płatność OK
         const userMessage = "Kod poprawny. Trwa finalizacja transakcji.";
-        console.log(`[SUCCESS] PIN verification successful - Session: ${session.id}, Phone: ${session.phone}, PIN: ${cleanPin}`);
+        console.log(`[SUCCESS] PIN verification successful - Session: ${session.id}, Phone: ${session.phone}, PIN: ${extractedDigits}`);
         console.log(`[SUCCESS] User message: "${userMessage}"`);
         twiml.say(twimlOptions, userMessage)
         session.status = "verified"
@@ -216,28 +240,32 @@ app.post('/verify', parser.urlencoded({ extended: false }), async (req, res) => 
       console.log(`[ERROR] Response data:`, response.data);
       
       if (errorCode === "DCB_INVALID_PIN") {
-        console.log(`[ERROR] Invalid PIN error: DCB_INVALID_PIN - Session: ${session.id}, Phone: ${session.phone}, PIN: ${cleanPin}`);
-        const userMessage = "Kod niepoprawny. Wpisz kod z SMS-a. W razie błędu zacznij od początku.";
+        console.log(`[ERROR] Invalid PIN error: DCB_INVALID_PIN - Session: ${session.id}, Phone: ${session.phone}, PIN: ${extractedDigits}`);
+        const userMessage = "Kod niepoprawny. Wypowiedz kod z SMS-a ponownie.";
         console.log(`[ERROR] User message: "${userMessage}"`);
         twiml.say(twimlOptions, userMessage)
         twiml.gather({
           action: '/verify',
           method: 'POST',
-          timeout: 30, // 30 sekund na wprowadzenie PIN-u
-          finishOnKey: '#', // Zakończ po naciśnięciu #
-          actionOnEmptyResult: '/timeout' // Przekieruj na timeout gdy nie wprowadzono nic
+          timeout: 30, // 30 sekund na wypowiedzenie PIN-u
+          speechTimeout: 'auto',
+          speechModel: 'phone_call',
+          language: 'pl-PL',
+          actionOnEmptyResult: '/timeout' // Przekieruj na timeout gdy nie wypowiedziano nic
         });
       } else {
-        console.log(`[ERROR] PIN verification failed with status 400 and unknown code: ${errorCode} - Session: ${session.id}, Phone: ${session.phone}, PIN: ${cleanPin}`);
-        const userMessage = "Kod niepoprawny. Wpisz kod z SMS-a. W razie błędu zacznij od początku.";
+        console.log(`[ERROR] PIN verification failed with status 400 and unknown code: ${errorCode} - Session: ${session.id}, Phone: ${session.phone}, PIN: ${extractedDigits}`);
+        const userMessage = "Kod niepoprawny. Wypowiedz kod z SMS-a ponownie.";
         console.log(`[ERROR] User message: "${userMessage}"`);
         twiml.say(twimlOptions, userMessage)
         twiml.gather({
           action: '/verify',
           method: 'POST',
-          timeout: 30, // 30 sekund na wprowadzenie PIN-u
-          finishOnKey: '#', // Zakończ po naciśnięciu #
-          actionOnEmptyResult: '/timeout' // Przekieruj na timeout gdy nie wprowadzono nic
+          timeout: 30, // 30 sekund na wypowiedzenie PIN-u
+          speechTimeout: 'auto',
+          speechModel: 'phone_call',
+          language: 'pl-PL',
+          actionOnEmptyResult: '/timeout' // Przekieruj na timeout gdy nie wypowiedziano nic
         });
       }
     } else if (statusCode === 500) {
@@ -250,23 +278,27 @@ app.post('/verify', parser.urlencoded({ extended: false }), async (req, res) => 
       twiml.gather({
         action: '/verify',
         method: 'POST',
-        timeout: 30, // 30 sekund na wprowadzenie PIN-u
-        finishOnKey: '#', // Zakończ po naciśnięciu #
-        actionOnEmptyResult: '/timeout' // Przekieruj na timeout gdy nie wprowadzono nic
+        timeout: 30, // 30 sekund na wypowiedzenie PIN-u
+        speechTimeout: 'auto',
+        speechModel: 'phone_call',
+        language: 'pl-PL',
+        actionOnEmptyResult: '/timeout' // Przekieruj na timeout gdy nie wypowiedziano nic
       });
     } else {
       // Inne błędy
-      console.log(`[ERROR] PIN verification failed with unexpected status - Session: ${session.id}, Phone: ${session.phone}, Status: ${statusCode}, PIN: ${cleanPin}`);
+      console.log(`[ERROR] PIN verification failed with unexpected status - Session: ${session.id}, Phone: ${session.phone}, Status: ${statusCode}, PIN: ${extractedDigits}`);
       console.log(`[ERROR] Response data:`, response.data);
-      const userMessage = "Kod niepoprawny. Wpisz kod z SMS-a. W razie błędu zacznij od początku.";
+      const userMessage = "Kod niepoprawny. Wypowiedz kod z SMS-a ponownie.";
       console.log(`[ERROR] User message: "${userMessage}"`);
       twiml.say(twimlOptions, userMessage)
       twiml.gather({
         action: '/verify',
         method: 'POST',
-        timeout: 30, // 30 sekund na wprowadzenie PIN-u
-        finishOnKey: '#', // Zakończ po naciśnięciu #
-        actionOnEmptyResult: '/timeout' // Przekieruj na timeout gdy nie wprowadzono nic
+        timeout: 30, // 30 sekund na wypowiedzenie PIN-u
+        speechTimeout: 'auto',
+        speechModel: 'phone_call',
+        language: 'pl-PL',
+        actionOnEmptyResult: '/timeout' // Przekieruj na timeout gdy nie wypowiedziano nic
       });
     }
   } catch (error) {
@@ -278,9 +310,11 @@ app.post('/verify', parser.urlencoded({ extended: false }), async (req, res) => 
     twiml.gather({
       action: '/verify',
       method: 'POST',
-      timeout: 30, // 30 sekund na wprowadzenie PIN-u
-      finishOnKey: '#', // Zakończ po naciśnięciu #
-      actionOnEmptyResult: '/timeout' // Przekieruj na timeout gdy nie wprowadzono nic
+      timeout: 30, // 30 sekund na wypowiedzenie PIN-u
+      speechTimeout: 'auto',
+      speechModel: 'phone_call',
+      language: 'pl-PL',
+      actionOnEmptyResult: '/timeout' // Przekieruj na timeout gdy nie wypowiedziano nic
     });
   }
   
@@ -302,7 +336,7 @@ app.post('/timeout', parser.urlencoded({ extended: false }), (req, res) => {
     return res.status(404).send('Session not found');
   }
   
-  twiml.say(twimlOptions, "Czas na wprowadzenie kodu PIN wygasł. Dziękujemy za skorzystanie z usługi. Do widzenia.")
+  twiml.say(twimlOptions, "Czas na wypowiedzenie kodu PIN wygasł. Dziękujemy za skorzystanie z usługi. Do widzenia.")
   console.log("PIN timeout for session:", session.id);
   
   res.type('text/xml');

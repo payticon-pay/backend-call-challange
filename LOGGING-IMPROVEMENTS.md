@@ -15,7 +15,7 @@ Dodano szczegółowe logowanie dla wszystkich przypadków błędów i sukcesów 
 
 ### 1. Rozpoczęcie weryfikacji PIN-a
 ```
-[INFO] PIN verification started - Phone: +48123456789, Digits: "1234"
+[INFO] PIN verification started - Phone: +48123456789, Speech: "1234", Confidence: 0.9
 ```
 
 ### 2. Walidacja formatu PIN-a
@@ -99,7 +99,7 @@ Dodano szczegółowe logowanie dla wszystkich przypadków błędów i sukcesów 
 
 ### 12. Brak parametrów
 ```
-[ERROR] Missing parameters - From: +48123456789, Digits: undefined
+[ERROR] Missing parameters - From: +48123456789, Speech: undefined
 ```
 
 ### 13. Sesja nie znaleziona

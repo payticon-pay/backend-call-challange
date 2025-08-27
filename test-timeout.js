@@ -58,16 +58,16 @@ async function main() {
       console.log("❌ Timeout not set");
     }
     
-    if (responseText.includes('finishOnKey="#"')) {
-      console.log("✅ Finish on # key set");
+    if (responseText.includes('speechTimeout="auto"')) {
+      console.log("✅ Speech timeout auto set");
     } else {
-      console.log("❌ Finish on # key not set");
+      console.log("❌ Speech timeout not set");
     }
     
-    if (responseText.includes('numDigits="6"')) {
-      console.log("✅ 6 digits expected");
+    if (responseText.includes('speechModel="phone_call"')) {
+      console.log("✅ Phone call speech model set");
     } else {
-      console.log("❌ 6 digits not set");
+      console.log("❌ Speech model not set");
     }
     
     if (responseText.includes('actionOnEmptyResult="/timeout"')) {
@@ -92,7 +92,7 @@ async function main() {
     );
     console.log("✅ Timeout endpoint working");
     
-    if (timeoutResponse.data.includes("Czas na wprowadzenie kodu PIN wygasł")) {
+    if (timeoutResponse.data.includes("Czas na wypowiedzenie kodu PIN wygasł")) {
       console.log("✅ Correct timeout message");
     } else {
       console.log("❌ Wrong timeout message");
@@ -105,7 +105,7 @@ async function main() {
   // Test 5: Verify endpoint with timeout parameters
   try {
     const verifyResponse = await client.post('/verify',
-      `From=${encodeURIComponent(PHONE)}&Digits=123456`,
+      `From=${encodeURIComponent(PHONE)}&SpeechResult=123456&Confidence=0.9`,
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded'
@@ -128,9 +128,9 @@ async function main() {
   
   console.log("\n🎯 Timeout testing completed!");
   console.log("\n📋 Summary of timeout features:");
-  console.log("• 30 seconds timeout for PIN input");
-  console.log("• Finish on # key press");
-  console.log("• Expect 6 digits");
+  console.log("• 30 seconds timeout for speech input");
+  console.log("• Auto speech timeout after speaking");
+  console.log("• Phone call speech model");
   console.log("• Redirect to /timeout on empty result");
   console.log("• Proper timeout message in Polish");
 }

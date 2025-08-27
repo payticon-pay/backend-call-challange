@@ -65,7 +65,7 @@ echo -e "\n5️⃣ Testing verify endpoint with CORRECT PIN ($CORRECT_PIN)..."
 CORRECT_RESPONSE=$(curl -s -w "HTTP Status: %{http_code}" \
   -X POST "$PROD_URL/verify" \
   -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "From=$(echo $PHONE | sed 's/+/%2B/g')&Digits=$CORRECT_PIN")
+  -d "From=$(echo $PHONE | sed 's/+/%2B/g')&SpeechResult=$CORRECT_PIN&Confidence=0.9")
 
 echo "Response: $CORRECT_RESPONSE"
 
@@ -74,7 +74,7 @@ echo -e "\n6️⃣ Testing verify endpoint with WRONG PIN ($WRONG_PIN)..."
 WRONG_RESPONSE=$(curl -s -w "HTTP Status: %{http_code}" \
   -X POST "$PROD_URL/verify" \
   -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "From=$(echo $PHONE | sed 's/+/%2B/g')&Digits=$WRONG_PIN")
+  -d "From=$(echo $PHONE | sed 's/+/%2B/g')&SpeechResult=$WRONG_PIN&Confidence=0.9")
 
 echo "Response: $WRONG_RESPONSE"
 

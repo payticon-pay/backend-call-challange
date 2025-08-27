@@ -46,14 +46,14 @@ curl -v -X POST https://paycadoo-call-challange.prod.kubeticon.com/voice \
 ```bash
 curl -v -X POST https://paycadoo-call-challange.prod.kubeticon.com/verify \
   -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "From=%2B48663366883&Digits=1234"
+  -d "From=%2B48663366883&SpeechResult=1234&Confidence=0.9"
 ```
 
 ### 6️⃣ Test weryfikacji z NIEPRAWIDŁOWYM PIN-em (4321)
 ```bash
 curl -v -X POST https://paycadoo-call-challange.prod.kubeticon.com/verify \
   -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "From=%2B48663366883&Digits=4321"
+  -d "From=%2B48663366883&SpeechResult=4321&Confidence=0.9"
 ```
 
 ### 7️⃣ Test endpoint timeout
