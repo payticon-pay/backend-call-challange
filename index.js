@@ -101,6 +101,7 @@ app.post('/voice', parser.urlencoded({ extended: false }), (request, response) =
   } else {
     twiml.say(twimlOptions, "Witaj w pejtikon kropka kom. Rozpoczynasz zakupy kart podarunkowych w usludze \"Place z Play\". Wypowiedz kod PIN z SMS-a.")
     twiml.gather({
+      input: 'speech',
       action: '/verify',
       method: 'POST',
       timeout: 30, // 30 sekund na wypowiedzenie PIN-u
@@ -131,12 +132,14 @@ app.post('/verify', parser.urlencoded({ extended: false }), async (req, res) => 
   // Wyciągnij cyfry z wypowiedzianego tekstu
   const extractedDigits = speechResult.replace(/[^0-9]/g, '');
   
-  if (!extractedDigits || extractedDigits.length < 4 || extractedDigits.length > 8) {
+  // Sprawdź czy PIN ma dokładnie 4 cyfry (standardowe PIN-y)
+  if (!extractedDigits || extractedDigits.length !== 4) {
     console.log(`[WARNING] Invalid PIN format from speech - Phone: ${from}, Original: "${speechResult}" -> Extracted: "${extractedDigits}"`);
-    const userMessage = "Nie udało się rozpoznać kodu PIN. Kod musi zawierać od 4 do 8 cyfr. Wypowiedz kod z SMS-a ponownie.";
+    const userMessage = "Nie udało się rozpoznać kodu PIN. Kod musi zawierać dokładnie 4 cyfry. Wypowiedz kod z SMS-a ponownie.";
     console.log(`[WARNING] User message: "${userMessage}"`);
     twiml.say(twimlOptions, userMessage)
     twiml.gather({
+      input: 'speech',
       action: '/verify',
       method: 'POST',
       timeout: 30,
@@ -149,6 +152,9 @@ app.post('/verify', parser.urlencoded({ extended: false }), async (req, res) => 
     return res.send(twiml.toString());
   }
   
+  // Jeśli PIN ma dokładnie 4 cyfry, automatycznie przechodzimy do autoryzacji
+  console.log(`[INFO] PIN with exactly 4 digits detected - Phone: ${from}, PIN: ${extractedDigits}, proceeding to authorization`);
+  
   // Sprawdź poziom pewności rozpoznania (opcjonalnie)
   if (confidence && parseFloat(confidence) < 0.7) {
     console.log(`[WARNING] Low confidence in speech recognition - Phone: ${from}, Confidence: ${confidence}, Extracted: "${extractedDigits}"`);
@@ -156,6 +162,7 @@ app.post('/verify', parser.urlencoded({ extended: false }), async (req, res) => 
     console.log(`[WARNING] User message: "${userMessage}"`);
     twiml.say(twimlOptions, userMessage)
     twiml.gather({
+      input: 'speech',
       action: '/verify',
       method: 'POST',
       timeout: 30,
@@ -245,6 +252,7 @@ app.post('/verify', parser.urlencoded({ extended: false }), async (req, res) => 
         console.log(`[ERROR] User message: "${userMessage}"`);
         twiml.say(twimlOptions, userMessage)
         twiml.gather({
+          input: 'speech',
           action: '/verify',
           method: 'POST',
           timeout: 30, // 30 sekund na wypowiedzenie PIN-u
@@ -259,6 +267,7 @@ app.post('/verify', parser.urlencoded({ extended: false }), async (req, res) => 
         console.log(`[ERROR] User message: "${userMessage}"`);
         twiml.say(twimlOptions, userMessage)
         twiml.gather({
+          input: 'speech',
           action: '/verify',
           method: 'POST',
           timeout: 30, // 30 sekund na wypowiedzenie PIN-u
@@ -276,6 +285,7 @@ app.post('/verify', parser.urlencoded({ extended: false }), async (req, res) => 
       console.log(`[ERROR] User message: "${userMessage}"`);
       twiml.say(twimlOptions, userMessage)
       twiml.gather({
+        input: 'speech',
         action: '/verify',
         method: 'POST',
         timeout: 30, // 30 sekund na wypowiedzenie PIN-u
@@ -292,6 +302,7 @@ app.post('/verify', parser.urlencoded({ extended: false }), async (req, res) => 
       console.log(`[ERROR] User message: "${userMessage}"`);
       twiml.say(twimlOptions, userMessage)
       twiml.gather({
+        input: 'speech',
         action: '/verify',
         method: 'POST',
         timeout: 30, // 30 sekund na wypowiedzenie PIN-u
@@ -308,6 +319,7 @@ app.post('/verify', parser.urlencoded({ extended: false }), async (req, res) => 
     console.log(`[ERROR] User message: "${userMessage}"`);
     twiml.say(twimlOptions, userMessage)
     twiml.gather({
+      input: 'speech',
       action: '/verify',
       method: 'POST',
       timeout: 30, // 30 sekund na wypowiedzenie PIN-u
