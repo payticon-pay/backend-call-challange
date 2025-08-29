@@ -163,7 +163,7 @@ class IntegrationTestRunner {
       
       // Simulate PIN input
       const verifyResponse = await axios.post(`${BASE_URL}/verify`,
-        `From=${encodeURIComponent(PHONE)}&SpeechResult=${pin}&Confidence=0.9`,
+        `From=${encodeURIComponent(PHONE)}&Digits=${pin}`,
         { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
       );
       

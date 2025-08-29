@@ -58,10 +58,10 @@ async function main() {
       console.log("❌ Timeout not set");
     }
     
-    if (responseText.includes('speechTimeout="auto"')) {
-      console.log("✅ Speech timeout auto set");
+    if (responseText.includes('finishOnKey="#"')) {
+      console.log("✅ DTMF finishOnKey set");
     } else {
-      console.log("❌ Speech timeout not set");
+      console.log("❌ DTMF finishOnKey not set");
     }
     
     if (responseText.includes('speechModel="phone_call"')) {
@@ -105,7 +105,7 @@ async function main() {
   // Test 5: Verify endpoint with timeout parameters
   try {
     const verifyResponse = await client.post('/verify',
-      `From=${encodeURIComponent(PHONE)}&SpeechResult=123456&Confidence=0.9`,
+              `From=${encodeURIComponent(PHONE)}&Digits=123456`,
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded'

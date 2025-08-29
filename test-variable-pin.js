@@ -51,10 +51,10 @@ async function main() {
     console.log("✅ Voice endpoint response received");
     
     // Sprawdź czy używa rozpoznawania mowy zamiast DTMF
-    if (voiceResponse.data.includes('speechTimeout') && voiceResponse.data.includes('speechModel')) {
-      console.log("✅ Speech recognition enabled - no DTMF restrictions");
+    if (voiceResponse.data.includes('finishOnKey="#"')) {
+      console.log("✅ DTMF enabled - finishOnKey configured");
     } else {
-      console.log("❌ Still using DTMF instead of speech recognition");
+      console.log("❌ DTMF not properly configured");
     }
     
     // Sprawdź czy ma timeout i inne parametry
@@ -73,7 +73,7 @@ async function main() {
   // Test 4: Test 4-digit PIN
   try {
     const verifyResponse4 = await client.post('/verify',
-      `From=${encodeURIComponent(PHONE)}&SpeechResult=1234&Confidence=0.9`,
+              `From=${encodeURIComponent(PHONE)}&Digits=1234`,
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded'
@@ -96,7 +96,7 @@ async function main() {
   // Test 5: Test 5-digit PIN
   try {
     const verifyResponse5 = await client.post('/verify',
-      `From=${encodeURIComponent(PHONE)}&SpeechResult=12345&Confidence=0.9`,
+              `From=${encodeURIComponent(PHONE)}&Digits=12345`,
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded'
@@ -119,7 +119,7 @@ async function main() {
   // Test 6: Test 6-digit PIN
   try {
     const verifyResponse6 = await client.post('/verify',
-      `From=${encodeURIComponent(PHONE)}&SpeechResult=123456&Confidence=0.9`,
+              `From=${encodeURIComponent(PHONE)}&Digits=123456`,
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded'
@@ -142,7 +142,7 @@ async function main() {
   // Test 7: Test very short PIN (2 digits)
   try {
     const verifyResponse2 = await client.post('/verify',
-      `From=${encodeURIComponent(PHONE)}&SpeechResult=12&Confidence=0.9`,
+              `From=${encodeURIComponent(PHONE)}&Digits=12`,
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded'
@@ -165,7 +165,7 @@ async function main() {
   // Test 8: Test very long PIN (8 digits)
   try {
     const verifyResponse8 = await client.post('/verify',
-      `From=${encodeURIComponent(PHONE)}&SpeechResult=12345678&Confidence=0.9`,
+              `From=${encodeURIComponent(PHONE)}&Digits=12345678`,
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded'
@@ -187,7 +187,7 @@ async function main() {
   
   console.log("\n🎯 Variable PIN length testing completed!");
   console.log("\n📋 Speech recognition summary:");
-  console.log("• Speech recognition enabled (speechTimeout, speechModel)");
+          console.log("• DTMF enabled (finishOnKey)");
   console.log("• Accepts PINs of any length (2-8+ digits tested)");
   console.log("• Maintains 30-second timeout");
   console.log("• Auto speech timeout after speaking");
