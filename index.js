@@ -79,6 +79,14 @@ app.post('/session', auth, parser.json(), (request, response) => {
     });
   }
   
+  // Sprawdź i usuń istniejącą sesję dla tego numeru
+  const existingSessionIndex = sessions.findIndex(s => s.phone === phone);
+  if (existingSessionIndex !== -1) {
+    const oldSession = sessions[existingSessionIndex];
+    console.log(`[INFO] Removing existing session for ${phone} - Old session ID: ${oldSession.id}, Status: ${oldSession.status}`);
+    sessions.splice(existingSessionIndex, 1);
+  }
+  
   const id = randomUUID();
   sessions.push({id, phone, url, status: "pending", secret, createdAt: new Date(), attempts: 0});
   console.log(`Session created for ${phone} ${id}`);
