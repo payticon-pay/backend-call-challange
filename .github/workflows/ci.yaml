@@ -5,6 +5,7 @@ on:
       - feature/*
       - release/*
       - hotfix/*
+      - dev
 env:
   IMAGE_TAG: ${{ github.sha }}
 jobs:
